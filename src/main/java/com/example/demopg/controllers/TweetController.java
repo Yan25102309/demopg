@@ -1,10 +1,7 @@
 package com.example.demopg.controllers;
 
 import java.util.Optional;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,11 +9,10 @@ import org.springframework.web.bind.annotation.*;
 
 import com.example.demopg.models.Tweet;
 import com.example.demopg.models.TweetReaction;
-import com.example.demopg.models.User;
 import com.example.demopg.repository.TweetRepository;
 import com.example.demopg.repository.TweetReactionRepository;
-import com.example.demopg.repository.UserRepository;
 import com.example.demopg.security.services.UserDetailsImpl;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -28,9 +24,6 @@ public class TweetController {
 
     @Autowired
     private TweetReactionRepository tweetReactionRepository;
-
-    @Autowired
-    private UserRepository userRepository;
 
     // Cualquier usuario autenticado (Admin, Mediador o Usuario común) puede ver la bitácora
    // Cualquier usuario autenticado puede ver la bitácora de forma directa
@@ -71,7 +64,10 @@ public class TweetController {
                 
                 java.nio.file.Files.write(path, file.getBytes());
 
-                String fileUrl = "http://localhost:8080/uploads/" + uniqueFileName;
+                String fileUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/uploads/")
+                    .path(uniqueFileName)
+                    .toUriString();
                 myTweet.setImageUrl(fileUrl);
 
             } catch (java.io.IOException e) {
