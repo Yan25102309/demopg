@@ -35,8 +35,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ... Mantén tus imports iniciales exactamente igual ...
-
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
   final String title;
@@ -54,7 +52,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final AuthService _authService = AuthService();
   
   bool _isLoading = false;
-  String _currentRole = 'ROLE_USER'; // 🌟 Guardará el rol del usuario actual
+  String _currentRole = 'ROLE_USER'; 
 
   Uint8List? _selectedFileBytes;
   String? _selectedFileName;
@@ -63,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _tweetService = TweetService();
-    _loadTweetsAndRole(); // 🌟 Carga tweets y el rol al iniciar
+    _loadTweetsAndRole(); 
   }
 
   @override
@@ -74,7 +72,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  // 🌟 Carga paralela de la bitácora y el rol guardado en el login
   void _loadTweetsAndRole() async {
     setState(() {
       _tweetsFuture = _tweetService.fetchTweets();
@@ -89,7 +86,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Helper para recargar la lista de tweets de manera independiente
   void _loadTweets() {
     setState(() {
       _tweetsFuture = _tweetService.fetchTweets();
@@ -171,17 +167,16 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // 🌟 CONSTRUYE EL INDICADOR DE ROL EN EL HEADER (APPBAR)
   Widget _buildRoleBadge() {
     String label = 'Explorador';
-    Color badgeColor = const Color(0xFF00838F); // Azul agua para usuario común
+    Color badgeColor = const Color(0xFF00838F); 
 
     if (_currentRole == 'ROLE_ADMIN') {
       label = 'Admin';
-      badgeColor = const Color(0xFFD32F2F); // Coral/Rojo para Admin
+      badgeColor = const Color(0xFFD32F2F); 
     } else if (_currentRole == 'ROLE_MODERATOR') {
       label = 'Moderador';
-      badgeColor = const Color(0xFF2E7D32); // Verde para Moderador
+      badgeColor = const Color(0xFF2E7D32); 
     }
 
     return Container(
@@ -249,7 +244,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Cabecera del Panel de Comentarios
                     Row(
                       children: [
                         const Icon(Icons.waves, color: Color(0xFF0B7285)),
@@ -276,7 +270,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    // 🌟 MUESTRA CLARAMENTE QUIEN COMIENZA LA PUBLICACIÓN ORIGINAL
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -351,7 +344,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                   children: [
                                     Row(
                                       children: [
-                                        // 🌟 AVATAR DINÁMICO CON INICIAL DEL QUE COMENTA
                                         CircleAvatar(
                                           radius: 13,
                                           backgroundColor: const Color(0xFF0B7285).withOpacity(0.12),
@@ -556,7 +548,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F8F9), // Fondo unificado limpio
+      backgroundColor: const Color(0xFFF2F8F9), 
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0B7285),
@@ -566,8 +558,20 @@ class _MyHomePageState extends State<MyHomePage> {
                 fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         centerTitle: false,
         actions: [
-          _buildRoleBadge(), // 🌟 BADGE DE ROL CARGADO EN EL APPBAR
-          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: Center(
+              child: Text(
+                "Explorador Activo", 
+                style: TextStyle(
+                    color: Colors.blueGrey[700],
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          _buildRoleBadge(), 
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF0B7285)),
             onPressed: () async {
@@ -597,7 +601,7 @@ class _MyHomePageState extends State<MyHomePage> {
           } else {
             final posts = snapshot.data!;
             return ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               itemCount: posts.length,
               itemBuilder: (context, index) =>
                   _buildTweetStyleCard(posts[index]),
@@ -608,143 +612,125 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // 🌟 CONTENEDOR AJUSTADO ESTILO CARD FLOTANTE RED SOCIAL (REDISEÑO)
- Widget _buildTweetStyleCard(Tweet post) {
-    // Evaluación condicional para renderizar el botón de borrado físico
+  Widget _buildTweetStyleCard(Tweet post) {
     final bool canDelete = _currentRole == 'ROLE_ADMIN' || _currentRole == 'ROLE_MODERATOR';
 
-    return Container(
-      // 🌟 CORREGIDO: Cambiado a EdgeInsets.only(bottom: 16)
-      margin: const EdgeInsets.only(bottom: 16), 
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-        border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
-      ),
-      padding: const EdgeInsets.all(14.0),
-      // ... El resto de tu función Row, Column, etc. se queda exactamente igual ...
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CircleAvatar(
-            radius: 18,
-            backgroundColor: Color(0xFFD6F4FA),
-            child: Icon(Icons.water, color: Color(0xFF0B7285), size: 16),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: RichText(
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          text: post.title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF263238),
-                              fontSize: 16),
-                          children: [
-                            TextSpan(
-                                text: '  #ID${post.id}',
-                                style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12)),
-                          ],
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 680), 
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), 
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0B7285).withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            )
+          ],
+          border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
+        ),
+        padding: const EdgeInsets.all(14.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CircleAvatar(
+              radius: 18,
+              backgroundColor: Color(0xFFD6F4FA),
+              child: Icon(Icons.water, color: Color(0xFF0B7285), size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: RichText(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          text: TextSpan(
+                            text: post.title,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF263238),
+                                fontSize: 16),
+                            children: [
+                              TextSpan(
+                                  text: '  #ID${post.id}',
+                                  style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (canDelete)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: Color(0xFFD32F2F), size: 20), 
+                          onPressed: () => _deleteTweet(post.id),
+                          constraints: const BoxConstraints(),
+                          padding: EdgeInsets.zero,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(post.tweet,
+                      style: const TextStyle(
+                          fontSize: 14.5, color: Color(0xFF455A64), height: 1.25)),
+                  
+                  if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      width: double.infinity,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          post.imageUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
                         ),
                       ),
                     ),
-                    // 🌟 BOTÓN DE ELIMINAR CONDICIONAL (SÓLO ADMIN Y MODERADOR)
-                    if (canDelete)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            color: Colors.redAccent, size: 20),
-                        onPressed: () => _deleteTweet(post.id),
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      ),
                   ],
-                ),
-                const SizedBox(height: 2),
-                Text(post.tweet,
-                    style: const TextStyle(
-                        fontSize: 14.5, color: Color(0xFF455A64), height: 1.25)),
-                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, thickness: 0.5, color: Color(0xFFECEFF1)),
                   const SizedBox(height: 10),
-                  // Formato recortado elegante para la imagen de la criatura
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 250),
-                      width: double.infinity,
-                      color: const Color(0xFFF8FBFB),
-                      child: Image.network(
-                        post.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => Container(
-                            height: 120,
-                            color: Colors.grey[100],
-                            child: const Center(
-                                child: Icon(Icons.broken_image_outlined,
-                                    color: Colors.blueGrey, size: 28))),
-                      ),
-                    ),
-                  ),
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildInteractiveReaction("👍", post.meGusta,
+                          () => _handleReaction(post, "LIKE")),
+                      _buildInteractiveReaction("❤️", post.meEncanta,
+                          () => _handleReaction(post, "LOVE")),
+                      _buildInteractiveReaction(
+                          "😢", post.triste, () => _handleReaction(post, "SAD")),
+                      _buildInteractiveReaction(
+                          "😂", post.risa, () => _handleReaction(post, "LAUGH")),
+                    ],
+                  )
                 ],
-                const SizedBox(height: 12),
-                const Divider(height: 1, thickness: 0.5, color: Color(0xFFECEFF1)),
-                const SizedBox(height: 6),
-                // Botonera Inferior de Reacciones y Comentario Estilizada
-             // Asegúrate de que tu barra de reacciones dentro de _buildTweetStyleCard use .only o .symmetric:
-Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    _buildInteractiveReaction("👍", post.meGusta, () => _handleReaction(post, "LIKE")),
-    _buildInteractiveReaction("❤️", post.meEncanta, () => _handleReaction(post, "LOVE")),
-    _buildInteractiveReaction("😢", post.triste, () => _handleReaction(post, "SAD")),
-    _buildInteractiveReaction("😂", post.risa, () => _handleReaction(post, "LAUGH")),
-    TextButton.icon(
-      onPressed: () => _openCommentsSheet(post),
-      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-      label: const Text('Comentar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF0B7285),
-        backgroundColor: const Color(0xFFEBF8FA),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    ),
-  ],
-)
-              ],
-            ),
-          )
-        ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
 
-  // 🌟 REEMPLAZA ESTA FUNCIÓN AL FINAL DE TU ARCHIVO
   Widget _buildInteractiveReaction(
       String emoji, int count, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Padding(
-        // Usamos symmetric que es un constructor constante perfecto y seguro
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), 
         child: Row(
           children: [
@@ -761,5 +747,5 @@ Row(
         ),
       ),
     );
-      }
-      }
+  }
+}
