@@ -53,6 +53,21 @@ class AuthService {
 
         // Guardamos el token de forma segura en el llavero local
         await _storage.write(key: 'jwt_token', value: token);
+        
+        // 🌟 EXTRACCIÓN SEGURA DEL ROL PARA QUE NUNCA SE QUEDE CARGANDO
+        String userRole = 'ROLE_USER';
+        try {
+          if (data['roles'] != null && (data['roles'] as List).isNotEmpty) {
+            userRole = data['roles'][0].toString();
+          } else if (data['role'] != null) {
+            userRole = data['role'].toString();
+          }
+        } catch (roleError) {
+          print("Aviso: No se pudo mapear el rol del JSON, usando ROLE_USER: $roleError");
+        }
+
+        // Guardamos el rol en el storage para que lo lea tu main.dart
+        await _storage.write(key: 'user_role', value: userRole);
         return true;
       }
       return false;
@@ -61,18 +76,15 @@ class AuthService {
       return false;
     }
   }
-  // AÑADE ESTE MÉTODO DENTRO DE TU CLASE AUTHSERVICE:
+  
+  // Leer el rol del usuario guardado localmente
   Future<String> getUserRole() async {
     String? role = await _storage.read(key: 'user_role');
-    
-    // Si viene vacío o nulo de un login viejo, devolvemos el rol básico por defecto
     if (role == null || role == 'null' || role.trim().isEmpty) {
       return 'ROLE_USER';
     }
-    
     return role;
   }
-        
 
   // Leer el token guardado
   Future<String?> getToken() async {
@@ -82,5 +94,6 @@ class AuthService {
   // Borrar el token al cerrar sesión
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'user_role'); // 🌟 Limpiamos también el rol de la sesión anterior
   }
 }
