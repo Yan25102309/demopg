@@ -45,7 +45,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late TweetService _tweetService;
-  late Future<List<Tweet>> _tweetsFuture;
+  
+  // 🌟 MODIFICACIÓN: Permitimos que el Future sea anulable mientras se unifican los datos
+  Future<List<Tweet>>? _tweetsFuture;
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -72,24 +74,33 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  // 🌟 MODIFICACIÓN: Método síncrono que frena el árbol hasta tener el rol listo
   void _loadTweetsAndRole() async {
-    setState(() {
-      _tweetsFuture = _tweetService.fetchTweets();
-    });
     try {
-      final role = await _authService.getUserRole();
-      setState(() {
-        _currentRole = role;
-      });
+      final resultados = await Future.wait([
+        _tweetService.fetchTweets(),
+        _authService.getUserRole(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _tweetsFuture = Future.value(resultados[0] as List<Tweet>);
+          _currentRole = resultados[1] as String;
+        });
+      }
     } catch (e) {
-      print("Error recuperando rol: $e");
+      print("Error cargando datos unificados: $e");
+      if (mounted) {
+        setState(() {
+          _tweetsFuture = _tweetService.fetchTweets();
+        });
+      }
     }
   }
 
+  // 🌟 MODIFICACIÓN: Reutiliza la carga unificada al actualizar el feed
   void _loadTweets() {
-    setState(() {
-      _tweetsFuture = _tweetService.fetchTweets();
-    });
+    _loadTweetsAndRole();
   }
 
   Future<void> _pickImage(StateSetter setModalState) async {
@@ -558,7 +569,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         centerTitle: false,
         actions: [
-          // 1. INDICADOR DE USUARIO SOLICITADO
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: Center(
@@ -588,32 +598,35 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: const Color(0xFF0B7285),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
-      // CONTROL DE ANCHO GLOBAL EN EL BODY PARA EVITAR DEFORMACIONES EN WEB
       body: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 750),
-          child: FutureBuilder<List<Tweet>>(
-            future: _tweetsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(
-                    child: Text('Bitácora vacía. Sé el primero en publicar.',
-                        style: TextStyle(color: Colors.blueGrey)));
-              } else {
-                final posts = snapshot.data!;
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  itemCount: posts.length,
-                  itemBuilder: (context, index) =>
-                      _buildTweetStyleCard(posts[index]),
-                );
-              }
-            },
-          ),
+          
+          // 🌟 MODIFICACIÓN: Controlamos la inicialización asíncrona global aquí
+          child: _tweetsFuture == null 
+              ? const Center(child: CircularProgressIndicator())
+              : FutureBuilder<List<Tweet>>(
+                  future: _tweetsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(
+                          child: Text('Bitácora vacía. Sé el primero en publicar.',
+                              style: TextStyle(color: Colors.blueGrey)));
+                    } else {
+                      final posts = snapshot.data!;
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) =>
+                            _buildTweetStyleCard(posts[index]),
+                      );
+                    }
+                  },
+                ),
         ),
       ),
     );
@@ -637,7 +650,6 @@ class _MyHomePageState extends State<MyHomePage> {
         border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
       ),
       padding: const EdgeInsets.all(16.0),
-      // RESTAURACIÓN COMPLETA DE TU FILA ORIGINAL PARA QUE NADA FLOTE RARO
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -675,7 +687,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                     ),
-                    // 2. ICONO DE ELIMINAR SOLICITADO
                     if (canDelete)
                       IconButton(
                         icon: const Icon(Icons.delete_outline_rounded,
@@ -691,8 +702,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   post.tweet,
                   style: const TextStyle(fontSize: 14.5, color: Color(0xFF455A64), height: 1.25),
                 ),
-                
-                // RENDERIZADO DE IMAGEN CORREGIDO (Sin cajas grises artificiales, usando el motor nativo)
                 if (post.imageUrl != null && post.imageUrl!.isNotEmpty && post.imageUrl != "null") ...[
                   const SizedBox(height: 12),
                   ClipRRect(
@@ -701,7 +710,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       post.imageUrl!,
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      // Si hay un error de red o de URL, simplemente oculta el espacio limpiamente
                       errorBuilder: (context, error, stackTrace) {
                         return const SizedBox.shrink();
                       },
