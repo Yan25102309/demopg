@@ -587,27 +587,32 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: const Color(0xFF0B7285),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
-      body: FutureBuilder<List<Tweet>>(
-        future: _tweetsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-                child: Text('Bitácora vacía. Sé el primero en publicar.',
-                    style: TextStyle(color: Colors.blueGrey)));
-          } else {
-            final posts = snapshot.data!;
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              itemCount: posts.length,
-              itemBuilder: (context, index) =>
-                  _buildTweetStyleCard(posts[index]),
-            );
-          }
-        },
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: FutureBuilder<List<Tweet>>(
+            future: _tweetsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                    child: Text('Bitácora vacía. Sé el primero en publicar.',
+                        style: TextStyle(color: Colors.blueGrey)));
+              } else {
+                final posts = snapshot.data!;
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) =>
+                      _buildTweetStyleCard(posts[index]),
+                );
+              }
+            },
+          ),
+        ),
       ),
     );
   }
@@ -615,112 +620,105 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildTweetStyleCard(Tweet post) {
     final bool canDelete = _currentRole == 'ROLE_ADMIN' || _currentRole == 'ROLE_MODERATOR';
 
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 680), 
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), 
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0B7285).withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            )
-          ],
-          border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
-        ),
-        padding: const EdgeInsets.all(14.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: Color(0xFFD6F4FA),
-              child: Icon(Icons.water, color: Color(0xFF0B7285), size: 16),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: RichText(
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          text: TextSpan(
-                            text: post.title,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF263238),
-                                fontSize: 16),
-                            children: [
-                              TextSpan(
-                                  text: '  #ID${post.id}',
-                                  style: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (canDelete)
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded,
-                              color: Color(0xFFD32F2F), size: 20), 
-                          onPressed: () => _deleteTweet(post.id),
-                          constraints: const BoxConstraints(),
-                          padding: EdgeInsets.zero,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(post.tweet,
-                      style: const TextStyle(
-                          fontSize: 14.5, color: Color(0xFF455A64), height: 1.25)),
-                  
-                  if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 260),
-                      width: double.infinity,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          post.imageUrl!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16), 
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+        border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
+      ),
+      padding: const EdgeInsets.all(14.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: Color(0xFFD6F4FA),
+            child: Icon(Icons.water, color: Color(0xFF0B7285), size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          text: post.title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF263238),
+                              fontSize: 16),
+                          children: [
+                            TextSpan(
+                                text: '  #ID${post.id}',
+                                style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12)),
+                          ],
                         ),
                       ),
                     ),
+                    if (canDelete)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            color: Color(0xFFD32F2F), size: 20), 
+                        onPressed: () => _deleteTweet(post.id),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
                   ],
-                  const SizedBox(height: 12),
-                  const Divider(height: 1, thickness: 0.5, color: Color(0xFFECEFF1)),
+                ),
+                const SizedBox(height: 2),
+                Text(post.tweet,
+                    style: const TextStyle(
+                        fontSize: 14.5, color: Color(0xFF455A64), height: 1.25)),
+                
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildInteractiveReaction("👍", post.meGusta,
-                          () => _handleReaction(post, "LIKE")),
-                      _buildInteractiveReaction("❤️", post.meEncanta,
-                          () => _handleReaction(post, "LOVE")),
-                      _buildInteractiveReaction(
-                          "😢", post.triste, () => _handleReaction(post, "SAD")),
-                      _buildInteractiveReaction(
-                          "😂", post.risa, () => _handleReaction(post, "LAUGH")),
-                    ],
-                  )
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      post.imageUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                  ),
                 ],
-              ),
-            )
-          ],
-        ),
+                const SizedBox(height: 12),
+                const Divider(height: 1, thickness: 0.5, color: Color(0xFFECEFF1)),
+                const SizedBox(height: 10),
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildInteractiveReaction("👍", post.meGusta,
+                        () => _handleReaction(post, "LIKE")),
+                    _buildInteractiveReaction("❤️", post.meEncanta,
+                        () => _handleReaction(post, "LOVE")),
+                    _buildInteractiveReaction(
+                        "😢", post.triste, () => _handleReaction(post, "SAD")),
+                    _buildInteractiveReaction(
+                        "😂", post.risa, () => _handleReaction(post, "LAUGH")),
+                  ],
+                )
+              ],
+            ),
+          )
+        ],
       ),
     );
   }
