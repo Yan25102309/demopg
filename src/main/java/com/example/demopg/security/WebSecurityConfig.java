@@ -72,6 +72,7 @@ public class WebSecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
                 auth.requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/tweets/**").permitAll()
                     .requestMatchers("/api/test/**").permitAll()
                     .requestMatchers("/uploads/**").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // Habilita preflights de CORS
