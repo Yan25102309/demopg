@@ -1,5 +1,5 @@
 # Usamos la imagen oficial de CirrusCI que contiene la versión estable más reciente
-FROM cirrusci/flutter:stable AS build
+FROM cirrusci/flutter:latest AS build
 
 # Copiamos los archivos de tu proyecto al contenedor
 COPY . /app
