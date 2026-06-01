@@ -558,6 +558,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         centerTitle: false,
         actions: [
+          // 1. INDICADOR DE USUARIO SOLICITADO
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: Center(
@@ -587,9 +588,10 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: const Color(0xFF0B7285),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
+      // CONTROL DE ANCHO GLOBAL EN EL BODY PARA EVITAR DEFORMACIONES EN WEB
       body: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(maxWidth: 750),
           child: FutureBuilder<List<Tweet>>(
             future: _tweetsFuture,
             builder: (context, snapshot) {
@@ -634,7 +636,8 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
         border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
       ),
-      padding: const EdgeInsets.all(14.0),
+      padding: const EdgeInsets.all(16.0),
+      // RESTAURACIÓN COMPLETA DE TU FILA ORIGINAL PARA QUE NADA FLOTE RARO
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -672,6 +675,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                     ),
+                    // 2. ICONO DE ELIMINAR SOLICITADO
                     if (canDelete)
                       IconButton(
                         icon: const Icon(Icons.delete_outline_rounded,
@@ -682,19 +686,25 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(post.tweet,
-                    style: const TextStyle(
-                        fontSize: 14.5, color: Color(0xFF455A64), height: 1.25)),
+                const SizedBox(height: 4),
+                Text(
+                  post.tweet,
+                  style: const TextStyle(fontSize: 14.5, color: Color(0xFF455A64), height: 1.25),
+                ),
                 
-                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                // RENDERIZADO DE IMAGEN CORREGIDO (Sin cajas grises artificiales, usando el motor nativo)
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty && post.imageUrl != "null") ...[
+                  const SizedBox(height: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
                       post.imageUrl!,
                       fit: BoxFit.cover,
                       width: double.infinity,
+                      // Si hay un error de red o de URL, simplemente oculta el espacio limpiamente
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox.shrink();
+                      },
                     ),
                   ),
                 ],
@@ -705,14 +715,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildInteractiveReaction("👍", post.meGusta,
-                        () => _handleReaction(post, "LIKE")),
-                    _buildInteractiveReaction("❤️", post.meEncanta,
-                        () => _handleReaction(post, "LOVE")),
-                    _buildInteractiveReaction(
-                        "😢", post.triste, () => _handleReaction(post, "SAD")),
-                    _buildInteractiveReaction(
-                        "😂", post.risa, () => _handleReaction(post, "LAUGH")),
+                    _buildInteractiveReaction("👍", post.meGusta, () => _handleReaction(post, "LIKE")),
+                    _buildInteractiveReaction("❤️", post.meEncanta, () => _handleReaction(post, "LOVE")),
+                    _buildInteractiveReaction("😢", post.triste, () => _handleReaction(post, "SAD")),
+                    _buildInteractiveReaction("😂", post.risa, () => _handleReaction(post, "LAUGH")),
                   ],
                 )
               ],
