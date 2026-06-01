@@ -1,3 +1,3 @@
-tweeter/
-build/
+# Bloquear solo el build de la raíz, no el de subcarpetas
+/build/
 .git/
