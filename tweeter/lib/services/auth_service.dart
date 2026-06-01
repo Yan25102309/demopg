@@ -61,6 +61,17 @@ class AuthService {
       return false;
     }
   }
+  // AÑADE ESTE MÉTODO DENTRO DE TU CLASE AUTHSERVICE:
+  Future<String> getUserRole() async {
+    String? role = await _storage.read(key: 'user_role');
+    
+    // Si viene vacío o nulo de un login viejo, devolvemos el rol básico por defecto
+    if (role == null || role == 'null' || role.trim().isEmpty) {
+      return 'ROLE_USER';
+    }
+    
+    return role;
+  }
         
 
   // Leer el token guardado

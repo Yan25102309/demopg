@@ -35,6 +35,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// ... Mantén tus imports iniciales exactamente igual ...
+
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
   final String title;
@@ -50,7 +52,9 @@ class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final AuthService _authService = AuthService();
+  
   bool _isLoading = false;
+  String _currentRole = 'ROLE_USER'; // 🌟 Guardará el rol del usuario actual
 
   Uint8List? _selectedFileBytes;
   String? _selectedFileName;
@@ -59,7 +63,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _tweetService = TweetService();
-    _loadTweets();
+    _loadTweetsAndRole(); // 🌟 Carga tweets y el rol al iniciar
   }
 
   @override
@@ -70,6 +74,22 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  // 🌟 Carga paralela de la bitácora y el rol guardado en el login
+  void _loadTweetsAndRole() async {
+    setState(() {
+      _tweetsFuture = _tweetService.fetchTweets();
+    });
+    try {
+      final role = await _authService.getUserRole();
+      setState(() {
+        _currentRole = role;
+      });
+    } catch (e) {
+      print("Error recuperando rol: $e");
+    }
+  }
+
+  // Helper para recargar la lista de tweets de manera independiente
   void _loadTweets() {
     setState(() {
       _tweetsFuture = _tweetService.fetchTweets();
@@ -135,7 +155,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // ENVÍA LA REACCIÓN AL BACKEND Y ACTUALIZA EL ESTADO EN TIEMPO REAL
   Future<void> _handleReaction(Tweet post, String type) async {
     try {
       Tweet updatedTweet = await _tweetService.reactToTweet(post.id, type);
@@ -152,6 +171,35 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  // 🌟 CONSTRUYE EL INDICADOR DE ROL EN EL HEADER (APPBAR)
+  Widget _buildRoleBadge() {
+    String label = 'Explorador';
+    Color badgeColor = const Color(0xFF00838F); // Azul agua para usuario común
+
+    if (_currentRole == 'ROLE_ADMIN') {
+      label = 'Admin';
+      badgeColor = const Color(0xFFD32F2F); // Coral/Rojo para Admin
+    } else if (_currentRole == 'ROLE_MODERATOR') {
+      label = 'Moderador';
+      badgeColor = const Color(0xFF2E7D32); // Verde para Moderador
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
+        ],
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+      ),
+    );
+  }
+
   Future<void> _openCommentsSheet(Tweet post) async {
     final TextEditingController commentController = TextEditingController();
     bool isSending = false;
@@ -159,7 +207,7 @@ class _MyHomePageState extends State<MyHomePage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFFF7FCFD),
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -197,20 +245,28 @@ class _MyHomePageState extends State<MyHomePage> {
                 top: 18,
               ),
               child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.72,
+                height: MediaQuery.of(context).size.height * 0.65,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Cabecera del Panel de Comentarios
                     Row(
                       children: [
                         const Icon(Icons.waves, color: Color(0xFF0B7285)),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            'Comentarios de ${post.title}',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                          child: RichText(
                             overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 16, color: Colors.black),
+                              children: [
+                                const TextSpan(text: 'Comentarios de '),
+                                TextSpan(
+                                  text: post.title,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0B7285)),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         IconButton(
@@ -219,10 +275,29 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      post.tweet,
-                      style: TextStyle(color: Colors.blueGrey[700]),
+                    const SizedBox(height: 6),
+                    // 🌟 MUESTRA CLARAMENTE QUIEN COMIENZA LA PUBLICACIÓN ORIGINAL
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD5EEF2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.anchor, size: 16, color: Color(0xFF0B7285)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Bitácora original: "${post.tweet}"',
+                              style: TextStyle(color: Colors.blueGrey[800], fontSize: 13, fontStyle: FontStyle.italic),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Expanded(
@@ -260,32 +335,47 @@ class _MyHomePageState extends State<MyHomePage> {
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.02),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
                                   border: Border.all(
-                                      color: const Color(0xFFD5EEF2)),
+                                      color: const Color(0xFFE6F4F6)),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
-                                        const CircleAvatar(
-                                          radius: 14,
-                                          backgroundColor: Color(0xFFD9F4F6),
-                                          child: Icon(Icons.person,
-                                              size: 14,
-                                              color: Color(0xFF0B7285)),
+                                        // 🌟 AVATAR DINÁMICO CON INICIAL DEL QUE COMENTA
+                                        CircleAvatar(
+                                          radius: 13,
+                                          backgroundColor: const Color(0xFF0B7285).withOpacity(0.12),
+                                          child: Text(
+                                            comment.username.isNotEmpty ? comment.username[0].toUpperCase() : 'A',
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF0B7285)),
+                                          ),
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
                                           comment.username,
                                           style: const TextStyle(
-                                              fontWeight: FontWeight.bold),
+                                              fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF263238)),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(comment.content),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      comment.content,
+                                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                    ),
                                   ],
                                 ),
                               );
@@ -297,22 +387,30 @@ class _MyHomePageState extends State<MyHomePage> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: commentController,
-                      maxLines: 3,
+                      maxLines: 2,
                       decoration: InputDecoration(
                         hintText:
                             'Escribe un comentario para este avistamiento...',
+                        hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                         filled: true,
                         fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.all(12),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           borderSide:
                               const BorderSide(color: Color(0xFFD5EEF2)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: Color(0xFF0B7285), width: 1.5),
                         ),
                       ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
+                      height: 44,
                       child: ElevatedButton.icon(
                         onPressed: isSending ? null : submitComment,
                         icon: isSending
@@ -322,13 +420,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: Colors.white),
                               )
-                            : const Icon(Icons.send),
-                        label: const Text('Publicar comentario'),
+                            : const Icon(Icons.send, size: 16),
+                        label: const Text('Publicar comentario', style: TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0B7285),
                           foregroundColor: Colors.white,
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
@@ -457,22 +556,26 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE8F7FB),
+      backgroundColor: const Color(0xFFF2F8F9), // Fondo unificado limpio
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0B7285),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0B7285),
+        elevation: 0.5,
         title: Text(widget.title,
             style: const TextStyle(
                 fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         centerTitle: false,
         actions: [
+          _buildRoleBadge(), // 🌟 BADGE DE ROL CARGADO EN EL APPBAR
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Color(0xFF0B7285)),
             onPressed: () async {
               await _authService.logout();
               if (mounted) Navigator.pushReplacementNamed(context, '/login');
             },
-          )
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -493,24 +596,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     style: TextStyle(color: Colors.blueGrey)));
           } else {
             final posts = snapshot.data!;
-            return Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFE8F7FB),
-                    Color(0xFFD8F0F5),
-                    Color(0xFFF7FCFD)
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 90),
-                itemCount: posts.length,
-                itemBuilder: (context, index) =>
-                    _buildTweetStyleCard(posts[index]),
-              ),
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+              itemCount: posts.length,
+              itemBuilder: (context, index) =>
+                  _buildTweetStyleCard(posts[index]),
             );
           }
         },
@@ -518,23 +608,35 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildTweetStyleCard(Tweet post) {
-    String displayTitle = post.title;
-    String displayBody = post.tweet;
+  // 🌟 CONTENEDOR AJUSTADO ESTILO CARD FLOTANTE RED SOCIAL (REDISEÑO)
+ Widget _buildTweetStyleCard(Tweet post) {
+    // Evaluación condicional para renderizar el botón de borrado físico
+    final bool canDelete = _currentRole == 'ROLE_ADMIN' || _currentRole == 'ROLE_MODERATOR';
 
     return Container(
+      // 🌟 CORREGIDO: Cambiado a EdgeInsets.only(bottom: 16)
+      margin: const EdgeInsets.only(bottom: 16), 
       decoration: BoxDecoration(
-        border:
-            Border(bottom: BorderSide(color: Colors.blueGrey[100]!, width: 1)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+        border: Border.all(color: const Color(0xFFE1EFF2), width: 0.8),
       ),
       padding: const EdgeInsets.all(14.0),
+      // ... El resto de tu función Row, Column, etc. se queda exactamente igual ...
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const CircleAvatar(
-            radius: 20,
+            radius: 18,
             backgroundColor: Color(0xFFD6F4FA),
-            child: Icon(Icons.water, color: Color(0xFF0B7285), size: 18),
+            child: Icon(Icons.water, color: Color(0xFF0B7285), size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -549,84 +651,84 @@ class _MyHomePageState extends State<MyHomePage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         text: TextSpan(
-                          text: displayTitle,
+                          text: post.title,
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                              color: Color(0xFF263238),
                               fontSize: 16),
                           children: [
                             TextSpan(
                                 text: '  #ID${post.id}',
                                 style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontWeight: FontWeight.normal,
-                                    fontSize: 13)),
+                                    color: Colors.grey[400],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12)),
                           ],
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: Colors.grey[500], size: 18),
-                      onPressed: () => _deleteTweet(post.id),
-                    ),
+                    // 🌟 BOTÓN DE ELIMINAR CONDICIONAL (SÓLO ADMIN Y MODERADOR)
+                    if (canDelete)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded,
+                            color: Colors.redAccent, size: 20),
+                        onPressed: () => _deleteTweet(post.id),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(displayBody,
+                const SizedBox(height: 2),
+                Text(post.tweet,
                     style: const TextStyle(
-                        fontSize: 15, color: Colors.black87, height: 1.3)),
-                if (post.imageUrl != null) ...[
+                        fontSize: 14.5, color: Color(0xFF455A64), height: 1.25)),
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 380),
-                    width: double.infinity,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: const Color(0xFFF5F5F5),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Image.network(
-                      post.imageUrl!,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      errorBuilder: (c, e, s) => Container(
-                          height: 120,
-                          color: Colors.grey[50],
-                          child: const Center(
-                              child: Icon(Icons.broken_image_outlined,
-                                  color: Colors.blueGrey, size: 30))),
+                  // Formato recortado elegante para la imagen de la criatura
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 250),
+                      width: double.infinity,
+                      color: const Color(0xFFF8FBFB),
+                      child: Image.network(
+                        post.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(
+                            height: 120,
+                            color: Colors.grey[100],
+                            child: const Center(
+                                child: Icon(Icons.broken_image_outlined,
+                                    color: Colors.blueGrey, size: 28))),
+                      ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildInteractiveReaction("👍", post.meGusta,
-                        () => _handleReaction(post, "LIKE")),
-                    _buildInteractiveReaction("❤️", post.meEncanta,
-                        () => _handleReaction(post, "LOVE")),
-                    _buildInteractiveReaction(
-                        "😢", post.triste, () => _handleReaction(post, "SAD")),
-                    _buildInteractiveReaction(
-                        "😂", post.risa, () => _handleReaction(post, "LAUGH")),
-                    TextButton.icon(
-                      onPressed: () => _openCommentsSheet(post),
-                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                      label: const Text('Comentar'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF0B7285),
-                        backgroundColor: const Color(0xFFDDF5FA),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18)),
-                      ),
-                    ),
-                  ],
-                )
+                const Divider(height: 1, thickness: 0.5, color: Color(0xFFECEFF1)),
+                const SizedBox(height: 6),
+                // Botonera Inferior de Reacciones y Comentario Estilizada
+             // Asegúrate de que tu barra de reacciones dentro de _buildTweetStyleCard use .only o .symmetric:
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    _buildInteractiveReaction("👍", post.meGusta, () => _handleReaction(post, "LIKE")),
+    _buildInteractiveReaction("❤️", post.meEncanta, () => _handleReaction(post, "LOVE")),
+    _buildInteractiveReaction("😢", post.triste, () => _handleReaction(post, "SAD")),
+    _buildInteractiveReaction("😂", post.risa, () => _handleReaction(post, "LAUGH")),
+    TextButton.icon(
+      onPressed: () => _openCommentsSheet(post),
+      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+      label: const Text('Comentar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFF0B7285),
+        backgroundColor: const Color(0xFFEBF8FA),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  ],
+)
               ],
             ),
           )
@@ -635,27 +737,29 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  // 🌟 REEMPLAZA ESTA FUNCIÓN AL FINAL DE TU ARCHIVO
   Widget _buildInteractiveReaction(
       String emoji, int count, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        // Usamos symmetric que es un constructor constante perfecto y seguro
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), 
         child: Row(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 15)),
-            const SizedBox(width: 5),
+            Text(emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 4),
             Text(
               '$count',
               style: TextStyle(
-                  fontSize: 12,
-                  color: count > 0 ? Colors.black87 : Colors.grey[400],
+                  fontSize: 11,
+                  color: count > 0 ? const Color(0xFF37474F) : Colors.grey[400],
                   fontWeight: FontWeight.bold),
             ),
           ],
         ),
       ),
     );
-  }
-}
+      }
+      }
