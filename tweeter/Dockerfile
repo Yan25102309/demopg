@@ -1,5 +1,5 @@
 # Servimos directamente el build web ya compilado
 FROM nginx:alpine
-COPY web /usr/share/nginx/html
+COPY build/web /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
