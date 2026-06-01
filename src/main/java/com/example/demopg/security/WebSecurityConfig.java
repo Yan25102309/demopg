@@ -64,7 +64,7 @@ public class WebSecurityConfig {
         return source;
     }
 
-    @Bean
+  @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -72,19 +72,15 @@ public class WebSecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
                 auth.requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/tweets/**").permitAll()
+                    // 🌟 Aseguramos la raíz exacta y cualquier sub-ruta para el método GET
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/tweets", "/api/tweets/**").permitAll()
                     .requestMatchers("/api/test/**").permitAll()
                     .requestMatchers("/uploads/**").permitAll()
-                    .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // Habilita preflights de CORS
+                    .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() 
                     .anyRequest().authenticated()
             );
 
-        // 🔥 AMARRE DE SEGURIDAD INTERNO:
-        // Vinculamos tu UserDetailsService directamente al núcleo de seguridad de HttpSecurity.
-        // Spring gestionará la validación de roles en segundo plano de forma segura.
         http.userDetailsService(userDetailsService);
-
-        // Colocamos tu filtro de JWT antes del validador de contraseñas por defecto
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
