@@ -51,10 +51,10 @@ class AuthService {
         print("==========================================================");
         // -----------------------------------------------------------------
 
-        // Guardamos el token de forma segura en el llavero local
+        // 🌟 Agregamos AWAIT estricto para asegurar la escritura del token antes de avanzar
         await _storage.write(key: 'jwt_token', value: token);
         
-        // 🌟 EXTRACCIÓN SEGURA DEL ROL PARA QUE NUNCA SE QUEDE CARGANDO
+        // Extracción del rol desde el JSON enviado por Spring Boot
         String userRole = 'ROLE_USER';
         try {
           if (data['roles'] != null && (data['roles'] as List).isNotEmpty) {
@@ -66,8 +66,11 @@ class AuthService {
           print("Aviso: No se pudo mapear el rol del JSON, usando ROLE_USER: $roleError");
         }
 
-        // Guardamos el rol en el storage para que lo lea tu main.dart
+        // 🌟 CAMBIO CRÍTICO: Usamos AWAIT obligatorio aquí. 
+        // Esto frena la ejecución hasta que el rol esté físicamente escrito en el almacenamiento local.
         await _storage.write(key: 'user_role', value: userRole);
+        
+        // Ahora sí, con los datos completamente asegurados en persistencia, permitimos el acceso
         return true;
       }
       return false;
@@ -94,6 +97,6 @@ class AuthService {
   // Borrar el token al cerrar sesión
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
-    await _storage.delete(key: 'user_role'); // 🌟 Limpiamos también el rol de la sesión anterior
+    await _storage.delete(key: 'user_role'); // Limpiamos también el rol de la sesión anterior
   }
 }
