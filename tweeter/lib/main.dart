@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart'; 
+import 'package:file_picker/file_picker.dart';
 import 'services/tweet_service.dart';
 import 'models/tweet.dart';
+import 'models/tweet_comment.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'services/auth_service.dart';
@@ -20,7 +21,8 @@ class MyApp extends StatelessWidget {
       title: 'OceanXplorer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF006064)),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B7285)),
+        scaffoldBackgroundColor: const Color(0xFFE8F7FB),
         useMaterial3: true,
       ),
       initialRoute: '/login',
@@ -44,10 +46,10 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late TweetService _tweetService;
   late Future<List<Tweet>> _tweetsFuture;
-  
+
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final AuthService _authService = AuthService(); 
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
 
   Uint8List? _selectedFileBytes;
@@ -60,6 +62,14 @@ class _MyHomePageState extends State<MyHomePage> {
     _loadTweets();
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _tweetService.dispose();
+    super.dispose();
+  }
+
   void _loadTweets() {
     setState(() {
       _tweetsFuture = _tweetService.fetchTweets();
@@ -67,7 +77,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _pickImage(StateSetter setModalState) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+    FilePickerResult? result =
+        await FilePicker.platform.pickFiles(type: FileType.image);
     if (result != null && result.files.first.bytes != null) {
       setModalState(() {
         _selectedFileBytes = result.files.first.bytes;
@@ -92,15 +103,16 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() => _isLoading = true);
 
     try {
-      await _tweetService.createTweetWithImage(title, description, _selectedFileName!, _selectedFileBytes!);
-      
+      await _tweetService.createTweetWithImage(
+          title, description, _selectedFileName!, _selectedFileBytes!);
+
       _titleController.clear();
       _descriptionController.clear();
       _selectedFileBytes = null;
       _selectedFileName = null;
-      
-      if (mounted) Navigator.pop(modalContext); 
-      _loadTweets(); 
+
+      if (mounted) Navigator.pop(modalContext);
+      _loadTweets();
     } catch (e) {
       _showErrorDialog('Error al publicar: $e');
     } finally {
@@ -118,7 +130,8 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     } catch (e) {
-      _showErrorDialog('No tienes permisos de Administrador o Mediador para borrar publicaciones.');
+      _showErrorDialog(
+          'No tienes permisos de Administrador o Mediador para borrar publicaciones.');
     }
   }
 
@@ -139,13 +152,208 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _openCommentsSheet(Tweet post) async {
+    final TextEditingController commentController = TextEditingController();
+    bool isSending = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFF7FCFD),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<List<TweetComment>> commentsFuture =
+                _tweetService.fetchComments(post.id);
+
+            Future<void> submitComment() async {
+              final content = commentController.text.trim();
+              if (content.isEmpty) return;
+
+              setSheetState(() => isSending = true);
+              try {
+                await _tweetService.addComment(post.id, content);
+                commentController.clear();
+                setSheetState(() {});
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al comentar: $e')),
+                  );
+                }
+              } finally {
+                if (mounted) setSheetState(() => isSending = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 18,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.72,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.waves, color: Color(0xFF0B7285)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Comentarios de ${post.title}',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      post.tweet,
+                      style: TextStyle(color: Colors.blueGrey[700]),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: FutureBuilder<List<TweetComment>>(
+                        future: commentsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                          if (snapshot.hasError) {
+                            return Center(
+                                child: Text('Error: ${snapshot.error}'));
+                          }
+
+                          final comments = snapshot.data ?? [];
+                          if (comments.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'Aún no hay comentarios. Sé el primero en dejar una huella marina.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.blueGrey[500]),
+                              ),
+                            );
+                          }
+
+                          return ListView.separated(
+                            itemCount: comments.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final comment = comments[index];
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: const Color(0xFFD5EEF2)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const CircleAvatar(
+                                          radius: 14,
+                                          backgroundColor: Color(0xFFD9F4F6),
+                                          child: Icon(Icons.person,
+                                              size: 14,
+                                              color: Color(0xFF0B7285)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          comment.username,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(comment.content),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: commentController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Escribe un comentario para este avistamiento...',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD5EEF2)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: isSending ? null : submitComment,
+                        icon: isSending
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.send),
+                        label: const Text('Publicar comentario'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0B7285),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Aviso'),
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido'))],
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'))
+        ],
       ),
     );
   }
@@ -164,7 +372,9 @@ class _MyHomePageState extends State<MyHomePage> {
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
-                top: 20, left: 16, right: 16,
+                top: 20,
+                left: 16,
+                right: 16,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -178,14 +388,17 @@ class _MyHomePageState extends State<MyHomePage> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       ElevatedButton(
-                        onPressed: _isLoading ? null : () => _createPost(context),
+                        onPressed:
+                            _isLoading ? null : () => _createPost(context),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF006064),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
                         ),
-                        child: const Text('Publicar', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Publicar',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -194,7 +407,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   TextField(
                     controller: _titleController,
                     autofocus: true,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18),
                     decoration: const InputDecoration(
                       hintText: '¿Qué criatura marina es?',
                       border: InputBorder.none,
@@ -213,8 +427,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     const SizedBox(height: 10),
                     Chip(
                       backgroundColor: const Color(0xFFE0F7FA),
-                      avatar: const Icon(Icons.image, size: 16, color: Color(0xFF006064)),
-                      label: Text(_selectedFileName!, style: const TextStyle(fontSize: 12, color: Color(0xFF006064))),
+                      avatar: const Icon(Icons.image,
+                          size: 16, color: Color(0xFF006064)),
+                      label: Text(_selectedFileName!,
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF006064))),
                       onDeleted: () => setModalState(() {
                         _selectedFileBytes = null;
                         _selectedFileName = null;
@@ -223,7 +440,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                   const SizedBox(height: 15),
                   IconButton(
-                    icon: const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF006064), size: 28),
+                    icon: const Icon(Icons.add_photo_alternate_outlined,
+                        color: Color(0xFF006064), size: 28),
                     onPressed: () => _pickImage(setModalState),
                   ),
                   const SizedBox(height: 15),
@@ -239,15 +457,17 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFE8F7FB),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF006064),
-        title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        backgroundColor: const Color(0xFF0B7285),
+        foregroundColor: Colors.white,
+        title: Text(widget.title,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.blueGrey),
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await _authService.logout();
               if (mounted) Navigator.pushReplacementNamed(context, '/login');
@@ -257,7 +477,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openComposeModal,
-        backgroundColor: const Color(0xFF006064),
+        backgroundColor: const Color(0xFF0B7285),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
       body: FutureBuilder<List<Tweet>>(
@@ -268,12 +488,29 @@ class _MyHomePageState extends State<MyHomePage> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Bitácora vacía. Sé el primero en publicar.', style: TextStyle(color: Colors.grey)));
+            return const Center(
+                child: Text('Bitácora vacía. Sé el primero en publicar.',
+                    style: TextStyle(color: Colors.blueGrey)));
           } else {
             final posts = snapshot.data!;
-            return ListView.builder(
-              itemCount: posts.length,
-              itemBuilder: (context, index) => _buildTweetStyleCard(posts[index]),
+            return Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFFE8F7FB),
+                    Color(0xFFD8F0F5),
+                    Color(0xFFF7FCFD)
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 90),
+                itemCount: posts.length,
+                itemBuilder: (context, index) =>
+                    _buildTweetStyleCard(posts[index]),
+              ),
             );
           }
         },
@@ -287,7 +524,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 1)),
+        border:
+            Border(bottom: BorderSide(color: Colors.blueGrey[100]!, width: 1)),
       ),
       padding: const EdgeInsets.all(14.0),
       child: Row(
@@ -295,8 +533,8 @@ class _MyHomePageState extends State<MyHomePage> {
         children: [
           const CircleAvatar(
             radius: 20,
-            backgroundColor: Color(0xFFE0F7FA),
-            child: Icon(Icons.anchor, color: Color(0xFF006064), size: 18),
+            backgroundColor: Color(0xFFD6F4FA),
+            child: Icon(Icons.water, color: Color(0xFF0B7285), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -312,26 +550,36 @@ class _MyHomePageState extends State<MyHomePage> {
                         overflow: TextOverflow.ellipsis,
                         text: TextSpan(
                           text: displayTitle,
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                              fontSize: 16),
                           children: [
-                            TextSpan(text: '  #ID${post.id}', style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.normal, fontSize: 13)),
+                            TextSpan(
+                                text: '  #ID${post.id}',
+                                style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontWeight: FontWeight.normal,
+                                    fontSize: 13)),
                           ],
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.close, color: Colors.grey[400], size: 18),
+                      icon: Icon(Icons.delete_outline,
+                          color: Colors.grey[500], size: 18),
                       onPressed: () => _deleteTweet(post.id),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(displayBody, style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.3)),
-                
+                Text(displayBody,
+                    style: const TextStyle(
+                        fontSize: 15, color: Colors.black87, height: 1.3)),
                 if (post.imageUrl != null) ...[
                   const SizedBox(height: 10),
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 380), 
+                    constraints: const BoxConstraints(maxHeight: 380),
                     width: double.infinity,
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
@@ -344,10 +592,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       fit: BoxFit.contain,
                       alignment: Alignment.center,
                       errorBuilder: (c, e, s) => Container(
-                        height: 120, 
-                        color: Colors.grey[50], 
-                        child: const Center(child: Icon(Icons.broken_image_outlined, color: Colors.blueGrey, size: 30))
-                      ),
+                          height: 120,
+                          color: Colors.grey[50],
+                          child: const Center(
+                              child: Icon(Icons.broken_image_outlined,
+                                  color: Colors.blueGrey, size: 30))),
                     ),
                   ),
                 ],
@@ -355,11 +604,27 @@ class _MyHomePageState extends State<MyHomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildInteractiveReaction("👍", post.meGusta, () => _handleReaction(post, "LIKE")),
-                    _buildInteractiveReaction("❤️", post.meEncanta, () => _handleReaction(post, "LOVE")),
-                    _buildInteractiveReaction("😢", post.triste, () => _handleReaction(post, "SAD")),
-                    _buildInteractiveReaction("😂", post.risa, () => _handleReaction(post, "LAUGH")),
-                    const SizedBox(width: 10),
+                    _buildInteractiveReaction("👍", post.meGusta,
+                        () => _handleReaction(post, "LIKE")),
+                    _buildInteractiveReaction("❤️", post.meEncanta,
+                        () => _handleReaction(post, "LOVE")),
+                    _buildInteractiveReaction(
+                        "😢", post.triste, () => _handleReaction(post, "SAD")),
+                    _buildInteractiveReaction(
+                        "😂", post.risa, () => _handleReaction(post, "LAUGH")),
+                    TextButton.icon(
+                      onPressed: () => _openCommentsSheet(post),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                      label: const Text('Comentar'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF0B7285),
+                        backgroundColor: const Color(0xFFDDF5FA),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18)),
+                      ),
+                    ),
                   ],
                 )
               ],
@@ -370,7 +635,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildInteractiveReaction(String emoji, int count, VoidCallback onTap) {
+  Widget _buildInteractiveReaction(
+      String emoji, int count, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -382,7 +648,10 @@ class _MyHomePageState extends State<MyHomePage> {
             const SizedBox(width: 5),
             Text(
               '$count',
-              style: TextStyle(fontSize: 12, color: count > 0 ? Colors.black87 : Colors.grey[400], fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: count > 0 ? Colors.black87 : Colors.grey[400],
+                  fontWeight: FontWeight.bold),
             ),
           ],
         ),

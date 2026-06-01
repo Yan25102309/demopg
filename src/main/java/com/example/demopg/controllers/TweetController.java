@@ -8,8 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.demopg.models.Tweet;
+import com.example.demopg.models.TweetComment;
 import com.example.demopg.models.TweetReaction;
 import com.example.demopg.repository.TweetRepository;
+import com.example.demopg.repository.TweetCommentRepository;
 import com.example.demopg.repository.TweetReactionRepository;
 import com.example.demopg.security.services.UserDetailsImpl;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -23,10 +25,11 @@ public class TweetController {
     private TweetRepository tweetRepository;
 
     @Autowired
+    private TweetCommentRepository tweetCommentRepository;
+
+    @Autowired
     private TweetReactionRepository tweetReactionRepository;
 
-    // Cualquier usuario autenticado (Admin, Mediador o Usuario común) puede ver la bitácora
-   // Cualquier usuario autenticado puede ver la bitácora de forma directa
     @GetMapping("")
     public java.util.List<Tweet> getTweet() {
         return tweetRepository.findAll();
@@ -82,6 +85,7 @@ public class TweetController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
     public void deleteTweet(@PathVariable Long id) {
+        tweetCommentRepository.deleteByTweetId(id);
         tweetRepository.deleteById(id);
     }
 
@@ -142,5 +146,30 @@ public class TweetController {
             case "SAD"  -> tweet.setTriste(Math.max(0, tweet.getTriste() - 1));
             case "LAUGH"-> tweet.setRisa(Math.max(0, tweet.getRisa() - 1));
         }
+    }
+
+    @GetMapping("/{id}/comments")
+    public java.util.List<TweetComment> getComments(@PathVariable Long id) {
+        return tweetCommentRepository.findByTweetIdOrderByCreatedAtAsc(id);
+    }
+
+    @PostMapping("/{id}/comments")
+    @Transactional
+    public TweetComment addComment(
+            @PathVariable Long id,
+            @RequestParam("content") String content) {
+
+        Tweet tweet = tweetRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Error: Publicación no encontrada."));
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        TweetComment comment = new TweetComment();
+        comment.setTweetId(tweet.getId());
+        comment.setUserId(userDetails.getId());
+        comment.setUsername(userDetails.getUsername());
+        comment.setContent(content.trim());
+
+        return tweetCommentRepository.save(comment);
     }
 }
